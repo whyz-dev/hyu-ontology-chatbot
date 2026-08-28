@@ -17,6 +17,7 @@
 ## 패키지
 
 - [`data-parser/`](data-parser/README.md): 공식 문서 수집, OCR, 표 구조 복원과 검증
+- [`data-generator/`](data-generator/README.md): 외부 질문 표현과 HYU 근거를 결합한 QA 후보 생성
 
 ## 브랜치 규칙
 
