@@ -18,12 +18,17 @@
 
 - [`data-parser/`](data-parser/README.md): 공식 문서 수집, OCR, 표 구조 복원과 검증
 - [`data-generator/`](data-generator/README.md): 외부 질문 표현과 HYU 근거를 결합한 QA 후보 생성
+- [`population-tool/`](population-tool/README.md): 문서 단위 ontology 초안 생성과 통합 검수
 
 ## 브랜치 규칙
 
 각 패키지는 최신 `main`에서 `feat/<패키지 이름>`으로 분기한다. 기능 검증 후
 `main`에 merge하고, 다음 패키지는 갱신된 `main`에서 다시 분기한다. 아직 검증이 끝나지
 않은 패키지는 feature branch에만 유지한다.
+
+현재 `main`에는 `data-parser` → `data-generator` → `population-tool` 순서로 merge되어
+있다. `ontology-chatbot`은 `feat/ontology-chatbot`에서 개발하며 아직 `main`에 포함하지
+않는다.
 
 ## 개발
 
@@ -32,3 +37,13 @@ Python 3.12 이상과 [uv](https://docs.astral.sh/uv/)가 필요하다.
 ```bash
 uv sync
 ```
+
+## 데이터
+
+수동 전사본과 통합 온톨로지는 Hugging Face
+[`whyz-dev/hyu-ontology`](https://huggingface.co/whyz-dev/hyu-ontology/tree/v2.0)의
+`v2.0` 브랜치에서 받는다. 브랜치 루트의 `ontology/`와 `source/`를 이 저장소의
+`data/` 아래에 배치한다.
+
+`data/external/`과 `data/raw/`는 로컬 참고·원본 자료이므로 Hugging Face 릴리스에서
+제외한다. QA는 추후 다시 생성해 `data/qa/`에 둔다.
