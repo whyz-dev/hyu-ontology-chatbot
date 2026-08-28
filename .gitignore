@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+dist/
+build/
+.env
+
+# 원본, 수작업 데이터셋, 모델 및 생성 산출물은 로컬에서만 관리한다.
+data/
