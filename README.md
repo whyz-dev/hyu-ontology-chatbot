@@ -19,6 +19,7 @@
 - [`data-parser/`](data-parser/README.md): 공식 문서 수집, OCR, 표 구조 복원과 검증
 - [`data-generator/`](data-generator/README.md): 외부 질문 표현과 HYU 근거를 결합한 QA 후보 생성
 - [`population-tool/`](population-tool/README.md): 문서 단위 ontology 초안 생성과 통합 검수
+- [`ontology-chatbot/`](ontology-chatbot/README.md): SPARQL 질의 생성과 근거 기반 Streamlit 챗봇
 
 ## 브랜치 규칙
 

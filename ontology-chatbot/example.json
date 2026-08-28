@@ -1,0 +1,79 @@
+{
+  "schema_version": "query-few-shot-v2",
+  "examples": [
+    {
+      "example_id": "graduation-credits",
+      "question": "25학번 건축공학과의 졸업 학점은 몇 점이야?",
+      "draft": {
+        "sparql": "PREFIX hyu: <urn:hyu-chatbot:vocab:>\nSELECT ?from ?through ?credits ?sourcePage ?sourceText WHERE {\n  BIND(2025 AS ?entryYear)\n  ?rule hyu:appliesToDepartment <urn:query-term:department> ;\n        hyu:hasCondition ?condition ;\n        hyu:hasRequirement ?requirement .\n  ?condition hyu:entryYearFrom ?from ;\n             hyu:entryYearThrough ?through .\n  FILTER(?from <= ?entryYear && ?entryYear <= ?through)\n  ?requirement hyu:creditScope <urn:query-term:credit-scope> ;\n               hyu:requiredCredits ?credits ;\n               hyu:sourcePage ?sourcePage ;\n               hyu:sourceText ?sourceText .\n}",
+        "terms": [
+          {
+            "placeholder_iri": "urn:query-term:department",
+            "mention": "건축공학과",
+            "expected_type": "hyu:Department"
+          },
+          {
+            "placeholder_iri": "urn:query-term:credit-scope",
+            "mention": "졸업 학점",
+            "expected_type": "hyu:CreditScope"
+          }
+        ]
+      }
+    },
+    {
+      "example_id": "pass-fail-threshold",
+      "question": "60점 미만이면 성적은 어떻게 처리돼?",
+      "draft": {
+        "sparql": "PREFIX hyu: <urn:hyu-chatbot:vocab:>\nSELECT ?minimumScore ?failingResult ?sourcePage ?sourceText WHERE {\n  ?rule a hyu:EvaluationRule ;\n        hyu:minimumScore ?minimumScore ;\n        hyu:failingResult ?failingResult ;\n        hyu:sourcePage ?sourcePage ;\n        hyu:sourceText ?sourceText .\n  FILTER(?minimumScore = 60)\n}",
+        "terms": []
+      }
+    },
+    {
+      "example_id": "mock-registration-schedule",
+      "question": "3학년 모의수강신청은 언제야?",
+      "draft": {
+        "sparql": "PREFIX hyu: <urn:hyu-chatbot:vocab:>\nPREFIX time: <http://www.w3.org/2006/time#>\nSELECT ?start ?end ?sourcePage ?sourceText WHERE {\n  ?rule hyu:appliesToStudentCategory <urn:query-term:grade-3> ;\n        hyu:targetsAdministrativeAction <urn:query-term:mock-registration> ;\n        hyu:effectiveDuring ?event ;\n        hyu:sourcePage ?sourcePage ;\n        hyu:sourceText ?sourceText .\n  ?event time:hasBeginning/time:inXSDDateTimeStamp ?start ;\n         time:hasEnd/time:inXSDDateTimeStamp ?end .\n}",
+        "terms": [
+          {
+            "placeholder_iri": "urn:query-term:grade-3",
+            "mention": "3학년",
+            "expected_type": "hyu:StudentCategory"
+          },
+          {
+            "placeholder_iri": "urn:query-term:mock-registration",
+            "mention": "모의수강신청",
+            "expected_type": "hyu:AdministrativeAction"
+          }
+        ]
+      }
+    },
+    {
+      "example_id": "course-closure-threshold",
+      "question": "일반 교과목 폐강 인원 기준은 어떻게 돼?",
+      "draft": {
+        "sparql": "PREFIX hyu: <urn:hyu-chatbot:vocab:>\nSELECT ?countBelow ?percentageBelow ?condition ?sourcePage ?sourceText WHERE {\n  ?rule a hyu:LimitRule ;\n        hyu:targetsCourseCategory <urn:query-term:general-course> ;\n        hyu:sourcePage ?sourcePage ;\n        hyu:sourceText ?sourceText .\n  OPTIONAL { ?rule hyu:closureWhenEnrollmentBelow ?countBelow }\n  OPTIONAL { ?rule hyu:closureWhenEnrollmentPercentageBelow ?percentageBelow }\n  OPTIONAL { ?rule hyu:hasCondition ?condition }\n  FILTER(BOUND(?countBelow) || BOUND(?percentageBelow))\n}",
+        "terms": [
+          {
+            "placeholder_iri": "urn:query-term:general-course",
+            "mention": "일반 교과목",
+            "expected_type": "hyu:CourseCategory"
+          }
+        ]
+      }
+    },
+    {
+      "example_id": "eighth-semester-registration",
+      "question": "7학기까지 졸업요건을 충족해도 8학기에 수강신청해야 해?",
+      "draft": {
+        "sparql": "PREFIX hyu: <urn:hyu-chatbot:vocab:>\nSELECT ?semesterFrom ?semesterThrough ?exception ?exceptionText\n       ?sourcePage ?sourceText WHERE {\n  ?rule a hyu:RequirementRule ;\n        hyu:targetsAdministrativeAction <urn:query-term:course-registration> ;\n        hyu:semesterFrom ?semesterFrom ;\n        hyu:semesterThrough ?semesterThrough ;\n        hyu:sourcePage ?sourcePage ;\n        hyu:sourceText ?sourceText .\n  FILTER(?semesterFrom <= 8 && 8 <= ?semesterThrough)\n  OPTIONAL {\n    ?rule hyu:hasException ?exception .\n    ?exception hyu:sourceText ?exceptionText .\n  }\n}",
+        "terms": [
+          {
+            "placeholder_iri": "urn:query-term:course-registration",
+            "mention": "수강신청",
+            "expected_type": "hyu:AdministrativeAction"
+          }
+        ]
+      }
+    }
+  ]
+}
