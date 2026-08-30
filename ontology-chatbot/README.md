@@ -8,6 +8,7 @@ LangChain의 `ChatOllama`와 Ollama native JSON Schema 출력을 사용한다.
 ```text
 질문
 → Qwen SPARQL 초안과 resource placeholder 생성
+→ 알려진 추상 class 직접 조회를 명시적 상속 경로로 교정하고 재검증
 → ontology label 후보 검색 및 Qwen 용어 정합
 → RDFLib으로 읽기 전용 SELECT 실행
 → 검색 행과 원문 근거를 Qwen에 전달

@@ -20,6 +20,38 @@ from models.settings import SETTINGS
 from .prompts import QUERY_PROMPT, query_prompt_messages
 
 
+# RDFLib은 RDFS 추론을 자동 적용하지 않는다. LLM이 추상 상위 class를 직접 type으로
+# 사용했을 때는 같은 의미의 명시적 class 경로로만 보수적으로 교정한다. 전체 IRI를 써서
+# 모델이 rdf/rdfs PREFIX를 빠뜨렸더라도 교정 결과가 독립적으로 파싱되게 한다.
+_ACADEMIC_RULE_TYPE_PATTERN = re.compile(
+    r"(?P<subject>[?$][A-Za-z_][A-Za-z0-9_-]*)"
+    r"(?P<before>\s+)(?:a|rdf:type)(?P<after>\s+)hyu:AcademicRule\b",
+    flags=re.IGNORECASE,
+)
+_ACADEMIC_RULE_TYPE_PATH = (
+    "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>/"
+    "<http://www.w3.org/2000/01/rdf-schema#subClassOf>*"
+)
+
+
+def reconcile_query(sparql: str) -> str:
+    """안전하게 의미를 보존할 수 있는 알려진 LLM 질의 오류만 교정한다.
+
+    ``?rule a hyu:AcademicRule``은 명시된 하위 class 인스턴스를 찾지 못하는 추상 type
+    조회다. 이를 ``rdf:type/rdfs:subClassOf*`` property path로 바꾸면 추론 없이도 같은
+    class 계층 의미를 유지할 수 있다. 그 밖의 vocabulary·placeholder·문법 오류는 손대지
+    않고 후속 검증기가 거부하도록 둔다.
+    """
+
+    return _ACADEMIC_RULE_TYPE_PATTERN.sub(
+        lambda match: (
+            f"{match.group('subject')}{match.group('before')}"
+            f"{_ACADEMIC_RULE_TYPE_PATH}{match.group('after')}hyu:AcademicRule"
+        ),
+        sparql,
+    )
+
+
 class QueryGenerator:
     """질의 생성 LLM과 결정적 SPARQL 검증을 결합한 Controller.
 
@@ -52,7 +84,9 @@ class QueryGenerator:
         재시도 대상으로 돌린다.
         """
 
-        sparql = draft.sparql
+        # 알려진 추상 class 직접 조회는 안전한 명시적 상속 경로로 먼저 정합한다.
+        # 교정된 질의도 아래의 모든 기존 안전성·vocabulary·문법 검사를 다시 통과해야 한다.
+        sparql = reconcile_query(draft.sparql)
         # 개체 IRI는 질문 표현을 실제 ontology 후보에 정합한 뒤에만 들어갈 수 있다.
         if re.search(
             r"(?:\bres:|<urn:hyu-chatbot:resource:)",
