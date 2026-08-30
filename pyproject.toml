@@ -5,11 +5,14 @@ description = "Ontology-based administrative QA for Hanyang University"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "langchain-core>=1.2,<2",
+    "langchain-ollama>=1.1,<2",
     "numpy>=2,<3",
     "opencv-contrib-python==4.10.0.84",
     "paddleocr==3.7.0",
     "paddlepaddle==3.2.0",
     "pillow>=12,<13",
+    "pydantic>=2.12,<3",
     "rapidfuzz>=3.14,<4",
     "rdflib>=7.1,<8",
     "streamlit>=1.49,<2",
