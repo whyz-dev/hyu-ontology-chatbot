@@ -1,6 +1,6 @@
 # Ontology chatbot
 
-Qwen이 한국어 질문을 SPARQL로 바꾸고, 수동 온톨로지에서 검색한 결과만 사용해 답한다.
+Qwen이 한국어 질문을 SPARQL로 바꾸고, 분할 수동 온톨로지에서 검색한 결과만 사용해 답한다.
 LangChain의 `ChatOllama`와 Ollama native JSON Schema 출력을 사용한다.
 
 ## 흐름
@@ -43,7 +43,7 @@ ontology-chatbot/
 ├── models/
 │   ├── schemas.py          질의·정합·답변 데이터 계약
 │   ├── settings.py         config.ini 검증과 설정 로딩
-│   ├── ontology.py         RDF 로딩·schema·용어 후보 색인
+│   ├── ontology.py         profile/pages 합성·schema·용어 후보 색인
 │   └── sparql.py           안전 검사·치환·SELECT 실행
 ├── controllers/
 │   ├── chatbot.py          전체 요청 흐름과 trace
@@ -60,6 +60,9 @@ ontology-chatbot/
 │   ├── query.json          SPARQL 생성 프롬프트
 │   ├── terms.json          용어 정합 프롬프트
 │   └── answer.json         근거 기반 답변 프롬프트
+├── verify_ontology.py      분할 graph의 무손실·무중복 복원 검사
+└── tests/
+    └── test_ontology.py    package layout·합성 회귀 테스트
 ```
 
 `app.py`는 Streamlit View를 연결하는 얇은 진입점이다. 내부 의존 방향은
@@ -74,31 +77,40 @@ Streamlit은 입력 때마다 화면 스크립트를 다시 실행하므로 View
 `controllers/prompts.py`가 JSON schema, QueryDraft 구조와 중복 ID를 검증한 뒤 LangChain
 메시지로 조합한다. `prompts/`에는 실행 가능한 Python 코드를 두지 않는다.
 
-기본 온톨로지 경로, Ollama 모델·URL·seed와 단계별 생성 token 수는 `config.ini`에서
+기본 온톨로지 디렉터리, Ollama 모델·URL·seed와 단계별 생성 token 수는 `config.ini`에서
 관리한다. 설정 section이나 key가 누락되거나 예상하지 않은 key가 있으면 시작 시 즉시
 오류를 내며 코드 내부 기본값으로 우회하지 않는다. Streamlit 사이드바에서는 현재 실행에
 한해 온톨로지 경로, 모델과 URL을 바꿀 수 있다.
 
+온톨로지 디렉터리는 `profile.ttl`을 먼저 읽은 다음 `pages/page-001.ttl`부터 번호순으로
+읽어 하나의 RDF graph로 합성한다. 이 레이아웃에 다른 Turtle 파일이 섞이거나 페이지
+번호가 빠지면 이전 통합본과의 중복 또는 지식 누락으로 간주해 시작 단계에서 실패한다.
+
 ## 실행
 
-먼저 로컬에 다음 파일과 모델이 있어야 한다.
+먼저 로컬에 다음 온톨로지 package와 모델이 있어야 한다.
 
 ```text
-data/ontology/published/
-└── hyu-course-guide-2026-2.ttl
+data/ontology/
+├── profile.ttl
+└── pages/
+    ├── page-001.ttl
+    ├── ...
+    └── page-079.ttl
 ```
 
 ```bash
 uv sync
 ollama pull qwen3.5:9b
 
+uv run python ontology-chatbot/verify_ontology.py data/ontology
 uv run streamlit run ontology-chatbot/app.py
 ```
 
 브라우저에서 질문을 입력하면 답변이 대화 기록에 쌓인다. 답변 아래의
 `근거와 온톨로지 질의 보기`를 펼치면 정합된 용어, 실제 실행한 SPARQL, 검색 결과 행을
-확인할 수 있다. 사이드바에서는 TTL 경로, Ollama 모델과 URL을 바꾸거나 대화 기록과
-챗봇 캐시를 초기화할 수 있다.
+확인할 수 있다. 사이드바에서는 온톨로지 디렉터리 또는 단일 테스트 TTL 경로, Ollama
+모델과 URL을 바꾸거나 대화 기록과 챗봇 캐시를 초기화할 수 있다.
 
 현재 UI는 대화 내역을 세션에 보관하지만, 각 질문은 이전 발화 없이 독립적으로
 온톨로지 질의로 변환한다.
