@@ -15,7 +15,8 @@
     "- 질문의 학생유형·학년·학번 조건이 결과 행에 없으면 적용된다고 말하지 않는다.",
     "- 결과 행이 질문의 대상이나 조건을 충족하지 않으면 insufficient_knowledge=true와",
     "  used_result_rows=[]를 반환한다.",
-    "- 충분히 답하면 실제 사용한 결과 행 번호를 used_result_rows에 기록한다.",
+    "- 충분히 답하면 실제 사용한 결과 행의 0-based 인덱스를 used_result_rows에 기록한다.",
+    "  첫 번째 행은 0이다. 결과가 1행뿐이면 반드시 used_result_rows=[0]을 사용한다.",
     "- requiredCredits, minimumCredits, maximumCredits 값의 단위는 학점이다.",
     "  정수인 decimal 값은 130.0 대신 130으로 자연스럽게 표현한다.",
     "- 근거 페이지 표기는 코드가 붙이므로 답변에 따로 넣지 않는다."

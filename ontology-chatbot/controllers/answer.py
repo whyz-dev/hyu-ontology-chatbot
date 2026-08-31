@@ -26,6 +26,30 @@ INSUFFICIENT_ANSWER_PATTERNS = (
 )
 
 
+def reconcile_cited_rows(
+    answer: GroundedAnswer,
+    *,
+    row_count: int,
+) -> GroundedAnswer:
+    """명백한 1-based 결과 행 인용만 내부 0-based 인덱스로 교정한다.
+
+    모든 인용이 ``1..row_count`` 범위에 있지만 적어도 하나가 0-based 범위를 벗어난
+    경우에만 1-based 출력으로 확정할 수 있다. 이미 유효한 ``[1]``처럼 두 번째 행을
+    가리킬 수도 있는 값은 그대로 두어 모델의 의도를 임의로 바꾸지 않는다.
+    """
+
+    cited = answer.used_result_rows
+    if not cited or row_count <= 0:
+        return answer
+    has_invalid_zero_based = any(index < 0 or index >= row_count for index in cited)
+    is_valid_one_based = all(1 <= index <= row_count for index in cited)
+    if not has_invalid_zero_based or not is_valid_one_based:
+        return answer
+    return answer.model_copy(
+        update={"used_result_rows": [index - 1 for index in cited]}
+    )
+
+
 class AnswerGenerator:
     """검색 결과에만 근거한 답변을 생성하는 마지막 LLM Controller.
 
@@ -81,6 +105,10 @@ class AnswerGenerator:
                     raise ValueError(  # noqa: TRY004 - 재시도할 출력 검증 오류다.
                         "Answer model did not return a GroundedAnswer"
                     )
+                answer = reconcile_cited_rows(
+                    answer,
+                    row_count=int(result["row_count"]),
+                )
                 # 존재하지 않는 행을 인용하면 답변 내용과 무관하게 grounding 실패다.
                 invalid_rows = [
                     index
@@ -104,7 +132,9 @@ class AnswerGenerator:
                 # 새 근거를 찾는 fallback 없이 같은 결과의 표현·인용 오류만 교정한다.
                 feedback = (
                     f"이전 출력 오류: {error}. 결과 행으로 답할 수 없으면 "
-                    "insufficient_knowledge=true와 used_result_rows=[]를 반환하세요."
+                    "insufficient_knowledge=true와 used_result_rows=[]를 반환하세요. "
+                    f"인용 가능한 0-based 행 인덱스는 0부터 "
+                    f"{int(result['row_count']) - 1}까지입니다."
                 )
         raise AnswerGenerationError(str(last_error or "Unknown answer error"))
 

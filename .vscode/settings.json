@@ -1,0 +1,3 @@
+{
+  "python.defaultInterpreterPath": "${workspaceFolder}/workshop/workshop/.venv/bin/python"
+}
