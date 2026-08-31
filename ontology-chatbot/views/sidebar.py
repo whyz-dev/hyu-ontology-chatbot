@@ -16,7 +16,10 @@ def render_sidebar(clear_chatbot_cache: Callable[[], None]) -> tuple[str, str, s
     """
     with st.sidebar:
         st.header("실행 설정")
-        ontology_path = st.text_input("온톨로지 TTL", value=str(SETTINGS.ontology_path))
+        ontology_path = st.text_input(
+            "온톨로지 디렉터리 또는 TTL",
+            value=str(SETTINGS.ontology_path),
+        )
         model = st.text_input("Ollama 모델", value=SETTINGS.model)
         ollama_url = st.text_input("Ollama URL", value=SETTINGS.ollama_url)
 

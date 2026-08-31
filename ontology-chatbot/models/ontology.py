@@ -1,8 +1,9 @@
-"""수동 온톨로지 graph의 로딩, 색인, 질의 실행을 제공한다.
+"""분할 온톨로지 graph의 로딩, 색인, 질의 실행을 제공한다.
 
+``profile.ttl``과 ``pages/page-NNN.ttl``을 하나의 graph snapshot으로 합성한다.
 LLM에는 전체 Turtle 대신 compact schema와 기존 resource 후보만 노출한다. 생성된
-SPARQL은 이 graph에 실제로 존재하는 vocabulary인지 검사한 뒤, 별도 ``sparql``
-모듈의 읽기 전용 실행 경로로 전달한다.
+SPARQL은 이 graph에 실제로 존재하는 vocabulary인지 검사한 뒤, 별도 ``sparql`` 모듈의
+읽기 전용 실행 경로로 전달한다.
 """
 
 from __future__ import annotations
@@ -56,6 +57,8 @@ QUERY_NAMESPACES = {
     "hyu": HYU,
 }
 
+PAGE_FILE_PATTERN = re.compile(r"page-(\d{3})\.ttl")
+
 STANDARD_SCHEMA_LINES = (
     "rdf:type [property] 리소스의 RDF class",
     "rdfs:label [property] 사람이 읽는 이름",
@@ -96,20 +99,89 @@ def _normalize(value: str) -> str:
     return re.sub(r"[^0-9a-z가-힣]", "", value)
 
 
+def ontology_files(ontology_path: Path) -> tuple[Path, ...]:
+    """온톨로지 입력을 결정적인 파싱 순서의 Turtle 파일 목록으로 해석한다.
+
+    디렉터리는 ``profile.ttl``과 1부터 빠짐없이 이어지는 ``pages/page-NNN.ttl``만
+    허용한다. 다른 Turtle이 섞이면 같은 사실을 두 번 읽거나 예전 published graph를
+    함께 읽을 수 있으므로 조용히 무시하지 않고 실패한다. 단일 Turtle 입력은 외부의
+    작은 테스트 ontology를 사용할 수 있도록 계속 지원한다.
+    """
+
+    if ontology_path.is_file():
+        if ontology_path.suffix.lower() != ".ttl":
+            raise ValueError(f"Ontology file must be Turtle: {ontology_path}")
+        return (ontology_path,)
+    if not ontology_path.exists():
+        raise FileNotFoundError(f"Ontology is missing: {ontology_path}")
+    if not ontology_path.is_dir():
+        raise ValueError(
+            f"Ontology path must be a directory or Turtle file: {ontology_path}"
+        )
+
+    profile = ontology_path / "profile.ttl"
+    pages_root = ontology_path / "pages"
+    if not profile.is_file():
+        raise FileNotFoundError(f"Ontology profile is missing: {profile}")
+    if not pages_root.is_dir():
+        raise FileNotFoundError(f"Ontology pages directory is missing: {pages_root}")
+
+    numbered_pages: list[tuple[int, Path]] = []
+    unexpected_page_files: list[Path] = []
+    for path in sorted(pages_root.glob("*.ttl")):
+        match = PAGE_FILE_PATTERN.fullmatch(path.name)
+        if match is None:
+            unexpected_page_files.append(path)
+        else:
+            numbered_pages.append((int(match.group(1)), path))
+    if unexpected_page_files:
+        raise ValueError(
+            "Unexpected Turtle files in ontology pages: "
+            + ", ".join(str(path) for path in unexpected_page_files)
+        )
+    if not numbered_pages:
+        raise FileNotFoundError(f"Ontology page files are missing: {pages_root}")
+
+    actual_numbers = [number for number, _ in numbered_pages]
+    expected_numbers = list(range(1, len(numbered_pages) + 1))
+    if actual_numbers != expected_numbers:
+        raise ValueError(
+            "Ontology page numbers must be contiguous from 001: "
+            f"expected={expected_numbers}, actual={actual_numbers}"
+        )
+
+    files = (profile, *(path for _, path in numbered_pages))
+    unexpected_turtle = sorted(set(ontology_path.rglob("*.ttl")) - set(files))
+    if unexpected_turtle:
+        raise ValueError(
+            "Unexpected Turtle files in ontology directory: "
+            + ", ".join(str(path) for path in unexpected_turtle)
+        )
+    return files
+
+
+def load_ontology_graph(ontology_path: Path) -> Graph:
+    """profile과 모든 page component를 하나의 RDFLib graph로 합성한다."""
+
+    graph = Graph()
+    for path in ontology_files(ontology_path):
+        graph.parse(path, format="turtle")
+    return graph
+
+
 class OntologyStore:
     """RDFLib graph와 재사용 가능한 schema·label 색인을 함께 보관한다.
 
-    인스턴스 생성 시 Turtle을 한 번 파싱하고 색인을 고정한다. 매 질문마다 파일을 다시
-    읽지 않으며, 모든 후보와 schema 정보는 같은 graph snapshot에서 나온다.
+    인스턴스 생성 시 온톨로지 component를 한 번 파싱하고 색인을 고정한다. 매 질문마다
+    파일을 다시 읽지 않으며, 모든 후보와 schema 정보는 같은 graph snapshot에서 나온다.
     """
 
     def __init__(self, ontology_path: Path) -> None:
-        """수동 Turtle을 읽고 vocabulary와 resource 검색 색인을 구성한다."""
+        """분할 온톨로지를 읽고 vocabulary와 resource 검색 색인을 구성한다."""
 
-        if not ontology_path.is_file():
-            raise FileNotFoundError(f"Manual ontology is missing: {ontology_path}")
         self.path = ontology_path
-        self.graph = Graph().parse(ontology_path, format="turtle")
+        self.files = ontology_files(ontology_path)
+        self.graph = load_ontology_graph(ontology_path)
         self._class_ancestor_cache: dict[URIRef, frozenset[URIRef]] = {}
         self._known_iris = {
             node for node in self.graph.all_nodes() if isinstance(node, URIRef)
